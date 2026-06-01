@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campeonato</title>
+<meta name="theme-color" content="#011a0e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Campeonato">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --verde: #009c3b;
+    --amarelo: #ffdf00;
+    --azul: #002776;
+    --branco: #ffffff;
+    --bg: #011a0e;
+    --bg2: rgba(0, 40, 20, 0.82);
+    --bg3: rgba(0, 60, 30, 0.7);
+    --border: rgba(255,223,0,0.13);
+    --border2: rgba(255,223,0,0.32);
+    --text: #f0f0f0;
+    --muted: #8dba9a;
+    --accent: #ffdf00;
+    --accent2: #009c3b;
+    --green: #4ade80;
+    --red: #f87171;
+    --gold: #ffdf00;
+    --silver: #c0c0c0;
+    --bronze: #cd7f32;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 60px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* CAMPO DE FUTEBOL NO FUNDO */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      /* Gramado listrado */
+      repeating-linear-gradient(
+        180deg,
+        rgba(0,120,40,0.18) 0px,
+        rgba(0,120,40,0.18) 60px,
+        rgba(0,80,20,0.18) 60px,
+        rgba(0,80,20,0.18) 120px
+      );
+    pointer-events: none;
+  }
+
+  /* Linhas do campo SVG inline via pseudo-element não funciona — usamos canvas no JS */
+
+  #field-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.13;
+  }
+
+  /* Overlay escuro para legibilidade */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(1,26,14,0.72) 0%, rgba(1,26,14,0.55) 100%);
+    pointer-events: none;
+  }
+
+  header, nav, .content, .toast { position: relative; z-index: 2; }
+
+  header {
+    padding: 28px 24px 0;
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .bandeira {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .flag-bar {
+    height: 4px;
+    border-radius: 2px;
+    flex: 1;
+    max-width: 80px;
+  }
+
+  .flag-bar.verde { background: var(--verde); }
+  .flag-bar.amarelo { background: var(--amarelo); }
+  .flag-bar.azul { background: var(--azul); }
+
+  .flag-diamond {
+    width: 36px;
+    height: 36px;
+    background: var(--amarelo);
+    transform: rotate(45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .flag-diamond-inner {
+    width: 22px;
+    height: 22px;
+    background: var(--azul);
+    border-radius: 50%;
+    transform: rotate(-45deg);
+  }
+
+  .header-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 56px;
+    letter-spacing: 4px;
+    line-height: 1;
+    color: var(--branco);
+    text-shadow: 0 0 40px rgba(255,223,0,0.4), 0 2px 0 rgba(0,0,0,0.5);
+  }
+
+  .header-title .destaque { color: var(--amarelo); }
+
+  .header-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .header-stars {
+    color: var(--amarelo);
+    font-size: 14px;
+    letter-spacing: 6px;
+    margin-top: 4px;
+  }
+
+  nav {
+    display: flex;
+    gap: 6px;
+    padding: 20px 24px 0;
+    max-width: 700px;
+    margin: 0 auto;
+    justify-content: center;
+  }
+
+  .tab {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 20px;
+    border-radius: 100px;
+    border: 1px solid var(--border2);
+    background: rgba(0,30,15,0.6);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    backdrop-filter: blur(4px);
+  }
+
+  .tab:hover { color: var(--text); border-color: rgba(255,223,0,0.5); }
+  .tab.active {
+    background: var(--amarelo);
+    color: #002200;
+    border-color: var(--amarelo);
+    font-weight: 700;
+    box-shadow: 0 0 16px rgba(255,223,0,0.35);
+  }
+
+  .content {
+    max-width: 700px;
+    margin: 24px auto 0;
+    padding: 0 20px;
+  }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* RODADAS */
+  .rodada-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .rodada-card:hover {
+    border-color: var(--border2);
+    box-shadow: 0 0 20px rgba(255,223,0,0.08);
+  }
+
+  .rodada-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,60,20,0.4);
+  }
+
+  .rodada-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--amarelo);
+    text-shadow: 0 0 10px rgba(255,223,0,0.4);
+  }
+
+  .bye-pill {
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 100px;
+    background: rgba(0,156,59,0.15);
+    color: var(--muted);
+    border: 1px solid rgba(0,156,59,0.3);
+    letter-spacing: 0.04em;
+  }
+
+  .jogo-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+
+  .jogo-row:last-child { border-bottom: none; }
+
+  .time-left { font-size: 14px; font-weight: 500; }
+  .time-right { font-size: 14px; font-weight: 500; text-align: right; }
+
+  .placar-area {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .placar-input {
+    width: 42px;
+    height: 38px;
+    background: rgba(0,40,15,0.8);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--amarelo);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .placar-input:focus {
+    border-color: var(--amarelo);
+    box-shadow: 0 0 8px rgba(255,223,0,0.3);
+  }
+
+  .vs-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    min-width: 14px;
+    text-align: center;
+  }
+
+  .btn-salvar {
+    display: block;
+    margin: 14px 18px;
+    padding: 10px;
+    background: linear-gradient(135deg, var(--verde), #007a2e);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    width: calc(100% - 36px);
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.3);
+  }
+
+  .btn-salvar:hover { opacity: 0.88; }
+  .btn-salvar:active { transform: scale(0.98); }
+
+  .resultado-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .badge-v { background: rgba(0,156,59,0.2); color: #4ade80; border: 1px solid rgba(0,156,59,0.4); }
+  .badge-e { background: rgba(255,255,255,0.07); color: var(--muted); border: 1px solid rgba(255,255,255,0.12); }
+  .badge-d { background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+
+  /* PONTUAÇÃO */
+  .classificacao-header {
+    display: grid;
+    grid-template-columns: 32px 1fr 36px 36px 36px 36px 36px 44px;
+    gap: 4px;
+    padding: 8px 16px;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 6px;
+  }
+
+  .classificacao-row {
+    display: grid;
+    grid-template-columns: 32px 1fr 36px 36px 36px 36px 36px 44px;
+    gap: 4px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 6px;
+    backdrop-filter: blur(6px);
+    transition: border-color 0.2s;
+  }
+
+  .classificacao-row:hover { border-color: var(--border2); }
+  .classificacao-row.primeiro { border-color: rgba(255,223,0,0.4); background: rgba(255,223,0,0.06); }
+
+  .pos-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .pos-num.gold { color: var(--gold); text-shadow: 0 0 8px rgba(255,223,0,0.5); }
+  .pos-num.silver { color: var(--silver); }
+  .pos-num.bronze { color: var(--bronze); }
+
+  .time-name { font-size: 14px; font-weight: 600; }
+
+  .stat-cell { font-size: 13px; text-align: center; color: var(--muted); }
+  .stat-cell.pts {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--amarelo);
+    text-align: center;
+  }
+
+  /* ARTILHEIROS */
+  .artilheiro-form {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(8px);
+  }
+
+  .form-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .form-input {
+    flex: 1;
+    min-width: 140px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus { border-color: var(--amarelo); }
+  .form-input::placeholder { color: var(--muted); }
+
+  .form-select {
+    flex: 1;
+    min-width: 120px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+  }
+
+  .form-num {
+    width: 70px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--amarelo);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    padding: 10px 14px;
+    outline: none;
+    text-align: center;
+  }
+
+  .form-num:focus, .form-select:focus { border-color: var(--amarelo); }
+
+  .btn-add {
+    padding: 10px 20px;
+    background: var(--verde);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-add:hover { opacity: 0.85; }
+
+  .artilheiro-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 6px;
+    backdrop-filter: blur(6px);
+    transition: border-color 0.2s;
+  }
+
+  .artilheiro-row:hover { border-color: var(--border2); }
+  .artilheiro-row.primeiro { border-color: rgba(255,223,0,0.4); background: rgba(255,223,0,0.06); }
+
+  .art-pos {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    min-width: 28px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .art-pos.gold { color: var(--gold); text-shadow: 0 0 8px rgba(255,223,0,0.5); }
+  .art-pos.silver { color: var(--silver); }
+  .art-pos.bronze { color: var(--bronze); }
+
+  .art-gols {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    color: var(--amarelo);
+    min-width: 44px;
+    text-align: right;
+    text-shadow: 0 0 10px rgba(255,223,0,0.3);
+  }
+
+  .art-info { flex: 1; }
+  .art-nome { font-size: 14px; font-weight: 600; }
+  .art-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .btn-del {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 16px;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .btn-del:hover { border-color: #f87171; color: #f87171; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--verde);
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 700;
+    transition: transform 0.3s;
+    pointer-events: none;
+    z-index: 999;
+    box-shadow: 0 4px 20px rgba(0,156,59,0.4);
+    letter-spacing: 0.03em;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 480px) {
+    .classificacao-header, .classificacao-row {
+      grid-template-columns: 28px 1fr 30px 30px 30px 30px 30px 38px;
+      font-size: 11px;
+      padding: 10px 10px;
+    }
+    .stat-cell.pts { font-size: 17px; }
+    .header-title { font-size: 42px; }
+  }
+
+  /* TELA DE ACESSO */
+  #tela-acesso {
+    position: fixed; inset: 0; z-index: 100;
+    background: linear-gradient(160deg, #011a0e 0%, #002810 60%, #001a08 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+
+  .acesso-logo { text-align: center; margin-bottom: 36px; }
+  .acesso-logo .flag-diamond2 {
+    width: 56px; height: 56px; background: var(--amarelo);
+    transform: rotate(45deg); display: inline-flex;
+    align-items: center; justify-content: center; margin-bottom: 16px;
+  }
+  .acesso-logo .flag-diamond2-inner {
+    width: 34px; height: 34px; background: var(--azul); border-radius: 50%; transform: rotate(-45deg);
+  }
+  .acesso-logo h1 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 48px;
+    letter-spacing: 4px; color: #fff;
+    text-shadow: 0 0 40px rgba(255,223,0,0.4);
+  }
+  .acesso-logo h1 span { color: var(--amarelo); }
+  .acesso-logo .stars { color: var(--amarelo); font-size: 16px; letter-spacing: 8px; margin-top: 2px; }
+
+  .acesso-card {
+    background: rgba(0,40,20,0.85); border: 1px solid rgba(255,223,0,0.2);
+    border-radius: 20px; padding: 28px 28px 24px; width: 100%; max-width: 360px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+
+  .acesso-title {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 20px; text-align: center;
+  }
+
+  .btn-visitante {
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: rgba(0,156,59,0.15); border: 1px solid rgba(0,156,59,0.4);
+    color: #4ade80; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.05em; text-transform: uppercase;
+    transition: all 0.2s; margin-bottom: 12px;
+  }
+  .btn-visitante:hover { background: rgba(0,156,59,0.25); }
+
+  .acesso-divider {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .acesso-divider span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .acesso-divider::before, .acesso-divider::after {
+    content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1);
+  }
+
+  .senha-group { position: relative; margin-bottom: 12px; }
+  .senha-input {
+    width: 100%; padding: 13px 44px 13px 16px;
+    background: rgba(0,60,30,0.7); border: 1px solid var(--border2);
+    border-radius: 12px; color: var(--amarelo);
+    font-family: 'Bebas Neue', sans-serif; font-size: 24px;
+    letter-spacing: 6px; text-align: center; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .senha-input:focus { border-color: var(--amarelo); box-shadow: 0 0 12px rgba(255,223,0,0.2); }
+  .senha-input::placeholder { font-size: 14px; letter-spacing: 0.05em; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+
+  .btn-entrar {
+    width: 100%; padding: 14px; border-radius: 12px;
+    background: var(--amarelo); border: none;
+    color: #001a00; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 800;
+    cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
+    transition: all 0.2s; box-shadow: 0 4px 20px rgba(255,223,0,0.3);
+  }
+  .btn-entrar:hover { opacity: 0.9; box-shadow: 0 4px 28px rgba(255,223,0,0.5); }
+  .btn-entrar:active { transform: scale(0.98); }
+
+  .senha-erro {
+    text-align: center; font-size: 12px; color: #f87171;
+    margin-top: 10px; display: none;
+  }
+
+  /* Badge modo visitante */
+  #modo-badge {
+    position: fixed; top: 12px; right: 12px; z-index: 50;
+    font-size: 11px; font-weight: 700; padding: 5px 12px;
+    border-radius: 100px; letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.2s;
+  }
+  #modo-badge.visitante { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+  #modo-badge.admin { background: rgba(255,223,0,0.15); color: var(--amarelo); border: 1px solid rgba(255,223,0,0.3); }
+
+  /* Bloquear inputs no modo visitante */
+  body.visitante .placar-input { pointer-events: none; opacity: 0.5; }
+  body.visitante .btn-salvar { display: none; }
+  body.visitante .artilheiro-form { display: none; }
+  body.visitante .btn-del { display: none; }
+
+</style>
+</head>
+<body>
+
+
+<!-- TELA DE ACESSO -->
+<div id="tela-acesso">
+  <div class="acesso-logo">
+    <div style="display:flex;justify-content:center;margin-bottom:14px">
+      <div class="flag-diamond2"><div class="flag-diamond2-inner"></div></div>
+    </div>
+    <h1>CAMPE<span>O</span>NATO</h1>
+    <div class="stars">★ ★ ★ ★ ★</div>
+  </div>
+  <div class="acesso-card">
+    <div class="acesso-title">Como deseja entrar?</div>
+    <button class="btn-visitante" onclick="entrarVisitante()">👁 Modo Visitante</button>
+    <div class="acesso-divider"><span>ou entre como admin</span></div>
+    <div class="senha-group">
+      <input class="senha-input" id="senha-input" type="password" placeholder="Digite a senha" maxlength="20"
+        onkeydown="if(event.key==='Enter') entrarAdmin()">
+    </div>
+    <button class="btn-entrar" onclick="entrarAdmin()">🔐 Entrar como Admin</button>
+    <div class="senha-erro" id="senha-erro">Senha incorreta. Tente novamente.</div>
+  </div>
+</div>
+
+<!-- BADGE DE MODO -->
+<div id="modo-badge" class="visitante" onclick="sairAdmin()" style="display:none"></div>
+
+<canvas id="field-canvas"></canvas>
+
+<header>
+  <div class="bandeira">
+    <div class="flag-bar verde"></div>
+    <div class="flag-diamond"><div class="flag-diamond-inner"></div></div>
+    <div class="flag-bar amarelo"></div>
+  </div>
+  <div class="header-title">CAMPE<span class="destaque">O</span>NATO</div>
+  <div class="header-stars">★ ★ ★ ★ ★</div>
+  <div class="header-sub">5 times · todos contra todos · 5 rodadas</div>
+</header>
+
+<nav>
+  <button class="tab active" onclick="showTab('rodadas')">Rodadas</button>
+  <button class="tab" onclick="showTab('pontuacao')">Pontuação</button>
+  <button class="tab" onclick="showTab('artilheiros')">Artilheiros</button>
+</nav>
+
+<div class="content">
+  <div id="sec-rodadas" class="section active"></div>
+
+  <div id="sec-pontuacao" class="section">
+    <div class="classificacao-header">
+      <div>#</div><div>Time</div>
+      <div style="text-align:center">J</div>
+      <div style="text-align:center">V</div>
+      <div style="text-align:center">E</div>
+      <div style="text-align:center">D</div>
+      <div style="text-align:center">GS</div>
+      <div style="text-align:center">Pts</div>
+    </div>
+    <div id="tabela-classificacao"></div>
+  </div>
+
+  <div id="sec-artilheiros" class="section">
+    <div class="artilheiro-form">
+      <div class="form-title">Registrar gol</div>
+      <div class="form-row">
+        <input class="form-input" id="art-nome" placeholder="Nome do jogador" type="text">
+        <select class="form-select" id="art-time">
+          <option value="">Time</option>
+          <option>Verde</option><option>Branco</option><option>Azul</option>
+          <option>Preto</option><option>Amarelo</option>
+        </select>
+        <input class="form-num" id="art-gols" type="number" min="1" value="1">
+        <button class="btn-add" onclick="adicionarArtilheiro()">+ Gol</button>
+      </div>
+    </div>
+    <div id="lista-artilheiros"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Desenha campo de futebol estilizado no canvas de fundo
+(function() {
+  const canvas = document.getElementById('field-canvas');
+  function draw() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 1.5;
+
+    // Linha central
+    ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+
+    // Círculo central
+    ctx.beginPath(); ctx.arc(w/2, h/2, Math.min(w,h)*0.18, 0, Math.PI*2); ctx.stroke();
+
+    // Ponto central
+    ctx.beginPath(); ctx.arc(w/2, h/2, 4, 0, Math.PI*2); ctx.fillStyle='#00ff88'; ctx.fill();
+
+    // Bordas do campo
+    const mx=40, my=60;
+    ctx.strokeRect(mx, my, w-mx*2, h-my*2);
+
+    // Área grande top
+    const aw=(w-mx*2)*0.55, ah=(h-my*2)*0.18;
+    ctx.strokeRect(mx+(w-mx*2-aw)/2, my, aw, ah);
+
+    // Área grande bottom
+    ctx.strokeRect(mx+(w-mx*2-aw)/2, h-my-ah, aw, ah);
+
+    // Área pequena top
+    const saw=(w-mx*2)*0.28, sah=(h-my*2)*0.08;
+    ctx.strokeRect(mx+(w-mx*2-saw)/2, my, saw, sah);
+
+    // Área pequena bottom
+    ctx.strokeRect(mx+(w-mx*2-saw)/2, h-my-sah, saw, sah);
+
+    // Gols top e bottom
+    const gw=(w-mx*2)*0.12, gh=10;
+    ctx.strokeRect(mx+(w-mx*2-gw)/2, my-gh, gw, gh);
+    ctx.strokeRect(mx+(w-mx*2-gw)/2, h-my, gw, gh);
+
+    // Arco da área top
+    ctx.beginPath();
+    ctx.arc(w/2, my+ah, Math.min(w,h)*0.1, 0.2*Math.PI, 0.8*Math.PI);
+    ctx.stroke();
+
+    // Arco da área bottom
+    ctx.beginPath();
+    ctx.arc(w/2, h-my-ah, Math.min(w,h)*0.1, 1.2*Math.PI, 1.8*Math.PI);
+    ctx.stroke();
+  }
+  draw();
+  window.addEventListener('resize', draw);
+})();
+
+const RODADAS = [
+  { num:1, bye:'Verde',   data:'09/06/2025', jogos:[['Branco','Amarelo'],['Azul','Preto']]   },
+  { num:2, bye:'Branco',  data:'16/06/2025', jogos:[['Verde','Azul'],['Preto','Amarelo']]    },
+  { num:3, bye:'Azul',    data:'23/06/2025', jogos:[['Branco','Preto'],['Verde','Amarelo']]  },
+  { num:4, bye:'Preto',   data:'30/06/2025', jogos:[['Verde','Branco'],['Azul','Amarelo']]   },
+  { num:5, bye:'Amarelo', data:'07/07/2025', jogos:[["Verde","Preto"],["Branco","Azul"]]     },
+];
+
+const TIMES = ['Verde','Branco','Azul','Preto','Amarelo'];
+let placares = JSON.parse(localStorage.getItem('placares') || '{}');
+let artilheiros = JSON.parse(localStorage.getItem('artilheiros') || '[]');
+
+function salvar() {
+  localStorage.setItem('placares', JSON.stringify(placares));
+  localStorage.setItem('artilheiros', JSON.stringify(artilheiros));
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['rodadas','pontuacao','artilheiros'][i] === tab);
+  });
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-'+tab).classList.add('active');
+  if(tab === 'pontuacao') renderClassificacao();
+  if(tab === 'artilheiros') renderArtilheiros();
+}
+
+function jogoKey(r, j) { return `r${r}j${j}`; }
+
+function renderRodadas() {
+  const el = document.getElementById('sec-rodadas');
+  el.innerHTML = '';
+  RODADAS.forEach(rd => {
+    const card = document.createElement('div');
+    card.className = 'rodada-card';
+    let html = `<div class="rodada-header">
+      <span class="rodada-num">Rodada ${rd.num}</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <span class="bye-pill">Descansa: ${rd.bye}</span>
+        <span style="font-size:11px;color:var(--amarelo);letter-spacing:0.06em;opacity:0.85">📅 Terça · ${rd.data}</span>
+      </div>
+    </div>`;
+    rd.jogos.forEach((jogo, ji) => {
+      const key = jogoKey(rd.num, ji);
+      const p = placares[key] || {a:'', b:''};
+      const res = getResultado(p.a, p.b);
+      html += `<div class="jogo-row">
+        <div class="time-left">${jogo[0]}${res ? ` <span class="resultado-badge ${res.a==='V'?'badge-v':res.a==='E'?'badge-e':'badge-d'}">${res.a}</span>` : ''}</div>
+        <div class="placar-area">
+          <input class="placar-input" type="number" min="0" max="99" value="${p.a}" oninput="updatePlacar('${key}','a',this.value)" placeholder="–">
+          <span class="vs-label">×</span>
+          <input class="placar-input" type="number" min="0" max="99" value="${p.b}" oninput="updatePlacar('${key}','b',this.value)" placeholder="–">
+        </div>
+        <div class="time-right">${res ? `<span class="resultado-badge ${res.b==='V'?'badge-v':res.b==='E'?'badge-e':'badge-d'}">${res.b}</span> ` : ''}${jogo[1]}</div>
+      </div>`;
+    });
+    html += `<button class="btn-salvar" onclick="salvarPlacar(${rd.num})">Salvar rodada ${rd.num}</button>`;
+    card.innerHTML = html;
+    el.appendChild(card);
+  });
+}
+
+function getResultado(a, b) {
+  if(a===''||b===''||a===null||b===null) return null;
+  const na=parseInt(a), nb=parseInt(b);
+  if(isNaN(na)||isNaN(nb)) return null;
+  if(na>nb) return {a:'V',b:'D'};
+  if(na<nb) return {a:'D',b:'V'};
+  return {a:'E',b:'E'};
+}
+
+function updatePlacar(key, side, val) {
+  if(!placares[key]) placares[key]={a:'',b:''};
+  placares[key][side]=val;
+}
+
+function salvarPlacar(rnum) {
+  salvar(); renderRodadas();
+  toast('Rodada ' + rnum + ' salva!');
+}
+
+function renderClassificacao() {
+  const stats={};
+  TIMES.forEach(t=>stats[t]={j:0,v:0,e:0,d:0,gp:0,gc:0,pts:0});
+  RODADAS.forEach(rd=>{
+    rd.jogos.forEach((jogo,ji)=>{
+      const key=jogoKey(rd.num,ji), p=placares[key];
+      if(!p||p.a===''||p.b==='') return;
+      const na=parseInt(p.a), nb=parseInt(p.b);
+      if(isNaN(na)||isNaN(nb)) return;
+      const [t1,t2]=jogo;
+      stats[t1].j++; stats[t2].j++;
+      stats[t1].gp+=na; stats[t1].gc+=nb;
+      stats[t2].gp+=nb; stats[t2].gc+=na;
+      if(na>nb){stats[t1].v++;stats[t1].pts+=3;stats[t2].d++;}
+      else if(na<nb){stats[t2].v++;stats[t2].pts+=3;stats[t1].d++;}
+      else{stats[t1].e++;stats[t1].pts++;stats[t2].e++;stats[t2].pts++;}
+    });
+  });
+  const ordem=TIMES.slice().sort((a,b)=>{
+    if(stats[b].pts!==stats[a].pts) return stats[b].pts-stats[a].pts;
+    const sb=stats[b].gp-stats[b].gc, sa=stats[a].gp-stats[a].gc;
+    if(sb!==sa) return sb-sa;
+    return stats[b].gp-stats[a].gp;
+  });
+  const el=document.getElementById('tabela-classificacao');
+  el.innerHTML='';
+  ordem.forEach((t,i)=>{
+    const s=stats[t];
+    const pc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const rowClass=i===0?' primeiro':'';
+    el.innerHTML+=`<div class="classificacao-row${rowClass}">
+      <div class="pos-num ${pc}">${i+1}</div>
+      <div class="time-name">${t}</div>
+      <div class="stat-cell">${s.j}</div>
+      <div class="stat-cell">${s.v}</div>
+      <div class="stat-cell">${s.e}</div>
+      <div class="stat-cell">${s.d}</div>
+      <div class="stat-cell">${s.gp}</div>
+      <div class="stat-cell pts">${s.pts}</div>
+    </div>`;
+  });
+}
+
+function adicionarArtilheiro() {
+  const nome=document.getElementById('art-nome').value.trim();
+  const time=document.getElementById('art-time').value;
+  const gols=parseInt(document.getElementById('art-gols').value)||1;
+  if(!nome||!time){toast('Preencha nome e time!');return;}
+  const ex=artilheiros.find(a=>a.nome.toLowerCase()===nome.toLowerCase()&&a.time===time);
+  if(ex){ex.gols+=gols;}else{artilheiros.push({nome,time,gols});}
+  salvar();
+  document.getElementById('art-nome').value='';
+  document.getElementById('art-gols').value='1';
+  renderArtilheiros();
+  toast(nome+' — '+gols+(gols===1?' gol':' gols')+' registrado!');
+}
+
+function removerArtilheiro(i) {
+  artilheiros.splice(i,1); salvar(); renderArtilheiros();
+}
+
+function renderArtilheiros() {
+  const ord=artilheiros.slice().sort((a,b)=>b.gols-a.gols);
+  const el=document.getElementById('lista-artilheiros');
+  if(ord.length===0){el.innerHTML='<div class="empty-state">Nenhum gol registrado ainda.</div>';return;}
+  el.innerHTML='';
+  ord.forEach((a,i)=>{
+    const pc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const rowClass=i===0?' primeiro':'';
+    const origIdx=artilheiros.findIndex(x=>x.nome===a.nome&&x.time===a.time);
+    el.innerHTML+=`<div class="artilheiro-row${rowClass}">
+      <div class="art-pos ${pc}">${i+1}</div>
+      <div class="art-info"><div class="art-nome">${a.nome}</div><div class="art-time">${a.time}</div></div>
+      <div class="art-gols">${a.gols}</div>
+      <button class="btn-del" onclick="removerArtilheiro(${origIdx})">×</button>
+    </div>`;
+  });
+}
+
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+
+const SENHA_ADMIN = '251211';
+let modoAdmin = false;
+
+function entrarVisitante() {
+  modoAdmin = false;
+  document.getElementById('tela-acesso').style.display = 'none';
+  document.body.classList.add('visitante');
+  const badge = document.getElementById('modo-badge');
+  badge.textContent = '👁 Visitante';
+  badge.className = 'visitante';
+  badge.style.display = 'block';
+  badge.onclick = null;
+  renderRodadas();
+}
+
+function entrarAdmin() {
+  const val = document.getElementById('senha-input').value;
+  if(val === SENHA_ADMIN) {
+    modoAdmin = true;
+    document.getElementById('tela-acesso').style.display = 'none';
+    document.body.classList.remove('visitante');
+    const badge = document.getElementById('modo-badge');
+    badge.textContent = '🔐 Admin · Sair';
+    badge.className = 'admin';
+    badge.style.display = 'block';
+    badge.onclick = sairAdmin;
+    document.getElementById('senha-erro').style.display = 'none';
+    renderRodadas();
+  } else {
+    const err = document.getElementById('senha-erro');
+    err.style.display = 'block';
+    document.getElementById('senha-input').value = '';
+    document.getElementById('senha-input').focus();
+  }
+}
+
+function sairAdmin() {
+  if(!modoAdmin) return;
+  modoAdmin = false;
+  document.body.classList.add('visitante');
+  const badge = document.getElementById('modo-badge');
+  badge.textContent = '👁 Visitante';
+  badge.className = 'visitante';
+  badge.onclick = null;
+  toast('Modo visitante ativado');
+  renderRodadas();
+}
+
+
+// Não renderiza até escolher modo
+</script>
+
+<script>
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
