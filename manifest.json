@@ -1,21 +1,24 @@
 {
   "name": "Campeonato",
   "short_name": "Campeonato",
-  "start_url": ".",
-  "scope": ".",
+  "description": "Gerenciador de campeonato de futebol",
+  "start_url": "./campeonato.html",
   "display": "standalone",
   "background_color": "#011a0e",
   "theme_color": "#011a0e",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
