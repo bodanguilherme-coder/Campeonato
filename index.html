@@ -657,6 +657,55 @@
   body.visitante .artilheiro-form { display: none; }
   body.visitante .btn-del { display: none; }
 
+
+  /* MATA-MATA */
+  .fase-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 3px;
+    color: var(--amarelo); margin: 20px 0 10px;
+    text-shadow: 0 0 12px rgba(255,223,0,0.3);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .fase-label::after {
+    content:''; flex:1; height:1px; background: rgba(255,223,0,0.2);
+  }
+  .mata-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; margin-bottom: 12px; overflow: hidden;
+    backdrop-filter: blur(8px); transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .mata-card:hover { border-color: var(--border2); box-shadow: 0 0 20px rgba(255,223,0,0.08); }
+  .mata-card.destaque { border-color: rgba(255,223,0,0.4); }
+  .mata-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 20px; border-bottom: 1px solid var(--border);
+    background: rgba(0,60,20,0.4);
+  }
+  .mata-titulo { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--amarelo); }
+  .mata-data { font-size: 11px; color: var(--amarelo); opacity: 0.8; letter-spacing: 0.06em; }
+  .mata-info {
+    padding: 12px 20px; font-size: 12px; color: var(--muted);
+    background: rgba(255,223,0,0.04); border-bottom: 1px solid var(--border);
+    letter-spacing: 0.03em;
+  }
+  .vencedor-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; padding: 4px 12px;
+    border-radius: 100px; background: rgba(255,223,0,0.15);
+    color: var(--amarelo); border: 1px solid rgba(255,223,0,0.4);
+    letter-spacing: 0.05em;
+  }
+  .campeao-card {
+    background: linear-gradient(135deg, rgba(255,223,0,0.12), rgba(0,156,59,0.08));
+    border: 1px solid rgba(255,223,0,0.5);
+    border-radius: 16px; padding: 24px 20px; text-align: center;
+    margin-top: 20px; backdrop-filter: blur(8px);
+  }
+  .campeao-trofeu { font-size: 48px; margin-bottom: 8px; }
+  .campeao-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .campeao-nome { font-family: 'Bebas Neue', sans-serif; font-size: 40px; color: var(--amarelo); letter-spacing: 3px; text-shadow: 0 0 20px rgba(255,223,0,0.5); }
+  .mata-pendente { font-size: 12px; color: var(--muted); font-style: italic; padding: 10px 20px; }
+
 </style>
 </head>
 <body>
@@ -704,6 +753,7 @@
   <button class="tab active" onclick="showTab('rodadas')">Rodadas</button>
   <button class="tab" onclick="showTab('pontuacao')">Pontuação</button>
   <button class="tab" onclick="showTab('artilheiros')">Artilheiros</button>
+  <button class="tab" onclick="showTab('matamata')">Mata-mata</button>
 </nav>
 
 <div class="content">
@@ -737,6 +787,11 @@
       </div>
     </div>
     <div id="lista-artilheiros"></div>
+  </div>
+</div>
+
+  <div id="sec-matamata" class="section">
+    <div id="mata-conteudo"></div>
   </div>
 </div>
 
@@ -820,12 +875,13 @@ function salvar() {
 
 function showTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    t.classList.toggle('active', ['rodadas','pontuacao','artilheiros'][i] === tab);
+    t.classList.toggle('active', ['rodadas','pontuacao','artilheiros','matamata'][i] === tab);
   });
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-'+tab).classList.add('active');
   if(tab === 'pontuacao') renderClassificacao();
   if(tab === 'artilheiros') renderArtilheiros();
+  if(tab === 'matamata') renderMataMata();
 }
 
 function jogoKey(r, j) { return `r${r}j${j}`; }
@@ -1016,6 +1072,140 @@ function sairAdmin() {
   renderRodadas();
 }
 
+
+
+function getClassificacao() {
+  const stats={};
+  TIMES.forEach(t=>stats[t]={j:0,v:0,e:0,d:0,gp:0,gc:0,pts:0});
+  RODADAS.forEach(rd=>{
+    rd.jogos.forEach((jogo,ji)=>{
+      const key=jogoKey(rd.num,ji), p=placares[key];
+      if(!p||p.a===''||p.b==='') return;
+      const na=parseInt(p.a), nb=parseInt(p.b);
+      if(isNaN(na)||isNaN(nb)) return;
+      const [t1,t2]=jogo;
+      stats[t1].j++; stats[t2].j++;
+      stats[t1].gp+=na; stats[t1].gc+=nb;
+      stats[t2].gp+=nb; stats[t2].gc+=na;
+      if(na>nb){stats[t1].v++;stats[t1].pts+=3;stats[t2].d++;}
+      else if(na<nb){stats[t2].v++;stats[t2].pts+=3;stats[t1].d++;}
+      else{stats[t1].e++;stats[t1].pts++;stats[t2].e++;stats[t2].pts++;}
+    });
+  });
+  return TIMES.slice().sort((a,b)=>{
+    if(stats[b].pts!==stats[a].pts) return stats[b].pts-stats[a].pts;
+    const sb=stats[b].gp-stats[b].gc, sa=stats[a].gp-stats[a].gc;
+    if(sb!==sa) return sb-sa;
+    return stats[b].gp-stats[a].gp;
+  });
+}
+
+function getVencedor(key, t1, t2) {
+  const p = placares[key];
+  if(!p||p.a===''||p.b==='') return null;
+  const na=parseInt(p.a), nb=parseInt(p.b);
+  if(isNaN(na)||isNaN(nb)) return null;
+  if(na>nb) return t1;
+  if(na<nb) return t2;
+  return 'empate';
+}
+
+function renderMataMata() {
+  const el = document.getElementById('mata-conteudo');
+  const ordem = getClassificacao();
+  const fasesCompletas = RODADAS.every(rd =>
+    rd.jogos.every((_,ji) => {
+      const p = placares[jogoKey(rd.num, ji)];
+      return p && p.a !== '' && p.b !== '';
+    })
+  );
+
+  let html = '<div class="fase-label">⚔️ Semifinais</div>';
+  html += '<div class="mata-info" style="margin-bottom:8px;background:rgba(0,60,20,0.3);border-radius:10px;border:1px solid var(--border)">📅 Terça · 14/07/2025 &nbsp;·&nbsp; 1º × 4º e 2º × 3º da fase de grupos</div>';
+
+  // Semi 1: 1º x 4º
+  const t1_s1 = fasesCompletas ? (ordem[0]||'?') : '1º colocado';
+  const t2_s1 = fasesCompletas ? (ordem[3]||'?') : '4º colocado';
+  const keyS1 = 'semi1';
+  const pS1 = placares[keyS1]||{a:'',b:''};
+  const resS1 = getResultado(pS1.a, pS1.b);
+  const vS1 = getVencedor(keyS1, t1_s1, t2_s1);
+
+  html += renderJogoMata('Semifinal 1', '14/07/2025', t1_s1, t2_s1, keyS1, pS1, resS1, vS1, fasesCompletas);
+
+  // Semi 2: 2º x 3º
+  const t1_s2 = fasesCompletas ? (ordem[1]||'?') : '2º colocado';
+  const t2_s2 = fasesCompletas ? (ordem[2]||'?') : '3º colocado';
+  const keyS2 = 'semi2';
+  const pS2 = placares[keyS2]||{a:'',b:''};
+  const resS2 = getResultado(pS2.a, pS2.b);
+  const vS2 = getVencedor(keyS2, t1_s2, t2_s2);
+
+  html += renderJogoMata('Semifinal 2', '14/07/2025', t1_s2, t2_s2, keyS2, pS2, resS2, vS2, fasesCompletas);
+
+  // Final
+  html += '<div class="fase-label" style="margin-top:24px">🏆 Final</div>';
+  html += '<div class="mata-info" style="margin-bottom:8px;background:rgba(0,60,20,0.3);border-radius:10px;border:1px solid var(--border)">📅 Terça · 21/07/2025 &nbsp;·&nbsp; Vencedores das semifinais</div>';
+
+  const semisFeitas = vS1 && vS1 !== 'empate' && vS2 && vS2 !== 'empate';
+  const t1_f = semisFeitas ? vS1 : 'Venc. Semi 1';
+  const t2_f = semisFeitas ? vS2 : 'Venc. Semi 2';
+  const keyF = 'final1';
+  const pF = placares[keyF]||{a:'',b:''};
+  const resF = getResultado(pF.a, pF.b);
+  const vF = getVencedor(keyF, t1_f, t2_f);
+
+  html += renderJogoMata('Final', '21/07/2025', t1_f, t2_f, keyF, pF, resF, vF, semisFeitas);
+
+  // Campeão
+  if(vF && vF !== 'empate') {
+    html += `<div class="campeao-card">
+      <div class="campeao-trofeu">🏆</div>
+      <div class="campeao-label">Campeão</div>
+      <div class="campeao-nome">${vF}</div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function renderJogoMata(titulo, data, t1, t2, key, p, res, vencedor, habilitado) {
+  const isAdmin = modoAdmin;
+  const inputsHtml = habilitado && isAdmin ? `
+    <input class="placar-input" type="number" min="0" max="99" value="${p.a}"
+      oninput="updatePlacar('${key}','a',this.value)" placeholder="–">
+    <span class="vs-label">×</span>
+    <input class="placar-input" type="number" min="0" max="99" value="${p.b}"
+      oninput="updatePlacar('${key}','b',this.value)" placeholder="–">
+  ` : `
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--amarelo);min-width:80px;text-align:center">
+      ${(p.a!==''&&p.b!=='') ? p.a+' × '+p.b : '– × –'}
+    </span>
+  `;
+
+  const btnSalvar = habilitado && isAdmin ? `<button class="btn-salvar" onclick="salvarMata('${key}')">Salvar ${titulo}</button>` : '';
+  const vencedorHtml = vencedor && vencedor !== 'empate' ? `<div style="padding:10px 20px 4px"><span class="vencedor-badge">🏅 ${vencedor}</span></div>` : '';
+
+  return `<div class="mata-card${titulo==='Final'?' destaque':''}">
+    <div class="mata-header">
+      <span class="mata-titulo">${titulo}</span>
+      <span class="mata-data">📅 Terça · ${data}</span>
+    </div>
+    <div class="jogo-row">
+      <div class="time-left">${t1}${res&&isAdmin ? ` <span class="resultado-badge ${res.a==='V'?'badge-v':res.a==='E'?'badge-e':'badge-d'}">${res.a}</span>` : ''}</div>
+      <div class="placar-area">${inputsHtml}</div>
+      <div class="time-right">${res&&isAdmin ? `<span class="resultado-badge ${res.b==='V'?'badge-v':res.b==='E'?'badge-e':'badge-d'}">${res.b}</span> ` : ''}${t2}</div>
+    </div>
+    ${vencedorHtml}
+    ${btnSalvar}
+  </div>`;
+}
+
+function salvarMata(key) {
+  salvar();
+  renderMataMata();
+  toast('Resultado salvo!');
+}
 
 // Não renderiza até escolher modo
 </script>
