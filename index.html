@@ -744,6 +744,44 @@
     border-bottom: 1px solid var(--border); margin-bottom: 6px;
   }
 
+
+  /* CORES FORTES - MATA-MATA E GOLEIROS */
+  #sec-matamata .time-left,
+  #sec-matamata .time-right,
+  #sec-matamata .time-left span,
+  #sec-matamata .time-right span,
+  #sec-goleiros .goleiro-nome { 
+    color: #ffffff !important; 
+    font-weight: 800 !important; 
+    opacity: 1 !important; 
+  }
+  #sec-matamata .mata-titulo,
+  #sec-matamata .mata-data,
+  #sec-matamata .fase-label { 
+    color: #ffdf00 !important; 
+    opacity: 1 !important; 
+  }
+  #sec-matamata .mata-info,
+  #sec-matamata .mata-pendente { 
+    color: #dddddd !important; 
+    opacity: 1 !important; 
+  }
+  #sec-goleiros .goleiro-time {
+    color: #aaaaaa !important;
+    opacity: 1 !important;
+  }
+  #sec-goleiros .goleiro-gols-sofridos {
+    color: #4ade80 !important;
+    opacity: 1 !important;
+  }
+  #sec-goleiros .goleiro-label {
+    color: #aaaaaa !important;
+    opacity: 1 !important;
+  }
+  #sec-goleiros .goleiro-pos,
+  #sec-matamata .bye-pill {
+    opacity: 1 !important;
+  }
 </style>
 </head>
 <body>
@@ -1080,6 +1118,20 @@ function entrarVisitante() {
   badge.className = 'visitante';
   badge.style.display = 'block';
   badge.onclick = null;
+  // Forçar visibilidade total no mata-mata
+  setTimeout(() => {
+    const sec = document.getElementById('sec-matamata');
+    if(sec) {
+      sec.style.cssText = 'opacity:1 !important;display:block';
+      sec.querySelectorAll('*').forEach(el => {
+        el.style.opacity = '1';
+        if(el.classList.contains('time-left') || el.classList.contains('time-right')) {
+          el.style.color = '#ffffff';
+          el.style.fontWeight = '800';
+        }
+      });
+    }
+  }, 100);
   renderRodadas();
 }
 
@@ -1211,6 +1263,21 @@ function renderMataMata() {
   }
 
   el.innerHTML = html;
+  // Forçar cor branca em todos os time-left e time-right do mata-mata
+  setTimeout(() => {
+    el.querySelectorAll('.time-left, .time-right').forEach(div => {
+      div.style.opacity = '1';
+      div.style.color = '#ffffff';
+      div.style.fontWeight = '800';
+      div.querySelectorAll('span').forEach(span => {
+        if(!span.classList.contains('resultado-badge') && !span.classList.contains('bye-pill')) {
+          span.style.color = '#ffffff';
+          span.style.opacity = '1';
+          span.style.fontWeight = '800';
+        }
+      });
+    });
+  }, 50);
 }
 
 function renderJogoMata(titulo, data, t1, t2, key, p, res, vencedor, habilitado) {
