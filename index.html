@@ -707,6 +707,43 @@
   .campeao-nome { font-family: 'Bebas Neue', sans-serif; font-size: 40px; color: var(--amarelo); letter-spacing: 3px; text-shadow: 0 0 20px rgba(255,223,0,0.5); }
   .mata-pendente { font-size: 12px; color: var(--muted); font-style: italic; padding: 10px 20px; }
 
+
+  /* GOLEIROS */
+  .goleiro-form {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; margin-bottom: 20px;
+    backdrop-filter: blur(8px);
+  }
+  .goleiro-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; background: var(--bg2);
+    border: 1px solid var(--border); border-radius: 12px;
+    margin-bottom: 6px; backdrop-filter: blur(6px);
+    transition: border-color 0.2s;
+  }
+  .goleiro-row:hover { border-color: var(--border2); }
+  .goleiro-row.primeiro { border-color: rgba(255,223,0,0.4); background: rgba(255,223,0,0.06); }
+  .goleiro-pos { font-family: 'Bebas Neue', sans-serif; font-size: 22px; min-width: 28px; text-align: center; color: var(--muted); }
+  .goleiro-pos.gold { color: var(--gold); text-shadow: 0 0 8px rgba(255,223,0,0.5); }
+  .goleiro-pos.silver { color: var(--silver); }
+  .goleiro-pos.bronze { color: var(--bronze); }
+  .goleiro-info { flex: 1; }
+  .goleiro-nome { font-size: 14px; font-weight: 600; color: #ffffff; }
+  .goleiro-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .goleiro-gols-sofridos {
+    font-family: 'Bebas Neue', sans-serif; font-size: 30px;
+    color: var(--verde); min-width: 44px; text-align: right;
+    text-shadow: 0 0 10px rgba(0,156,59,0.3);
+  }
+  .goleiro-label { font-size: 10px; color: var(--muted); text-align: right; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+  .goleiros-header {
+    display: grid; grid-template-columns: 32px 1fr 60px;
+    gap: 4px; padding: 8px 16px; font-size: 10px;
+    color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.08em; font-weight: 600;
+    border-bottom: 1px solid var(--border); margin-bottom: 6px;
+  }
+
 </style>
 </head>
 <body>
@@ -755,6 +792,7 @@
   <button class="tab" onclick="showTab('pontuacao')">Pontuação</button>
   <button class="tab" onclick="showTab('artilheiros')">Artilheiros</button>
   <button class="tab" onclick="showTab('matamata')">Mata-mata</button>
+  <button class="tab" onclick="showTab('goleiros')">Goleiros</button>
 </nav>
 
 <div class="content">
@@ -790,6 +828,10 @@
     <div id="lista-artilheiros"></div>
   </div>
 </div>
+
+  <div id="sec-goleiros" class="section">
+    <div id="goleiros-conteudo"></div>
+  </div>
 
   <div id="sec-matamata" class="section">
     <div id="mata-conteudo"></div>
@@ -876,13 +918,14 @@ function salvar() {
 
 function showTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    t.classList.toggle('active', ['rodadas','pontuacao','artilheiros','matamata'][i] === tab);
+    t.classList.toggle('active', ['rodadas','pontuacao','artilheiros','matamata','goleiros'][i] === tab);
   });
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-'+tab).classList.add('active');
   if(tab === 'pontuacao') renderClassificacao();
   if(tab === 'artilheiros') renderArtilheiros();
   if(tab === 'matamata') renderMataMata();
+  if(tab === 'goleiros') renderGoleiros();
 }
 
 function jogoKey(r, j) { return `r${r}j${j}`; }
@@ -1207,6 +1250,129 @@ function salvarMata(key) {
   renderMataMata();
   toast('Resultado salvo!');
 }
+
+
+// Goleiros fixos por time
+const GOLEIROS = [
+  { nome: '?', time: 'Verde' },
+  { nome: '?', time: 'Branco' },
+  { nome: '?', time: 'Azul' },
+  { nome: '?', time: 'Preto' },
+  { nome: '?', time: 'Amarelo' },
+];
+
+function getGolsSofridos(time) {
+  let gols = 0;
+  RODADAS.forEach(rd => {
+    rd.jogos.forEach((jogo, ji) => {
+      const key = jogoKey(rd.num, ji);
+      const p = placares[key];
+      if(!p || p.a === '' || p.b === '') return;
+      const na = parseInt(p.a), nb = parseInt(p.b);
+      if(isNaN(na) || isNaN(nb)) return;
+      if(jogo[0] === time) gols += nb;
+      if(jogo[1] === time) gols += na;
+    });
+  });
+  // Adicionar gols sofridos no mata-mata
+  [['semi1', GOLEIROS], ['semi2', GOLEIROS], ['final1', GOLEIROS]].forEach(([key]) => {
+    // pegar o jogo do mata-mata correspondente ao time
+  });
+  return gols;
+}
+
+function renderGoleiros() {
+  const el = document.getElementById('goleiros-conteudo');
+
+  // Calcular gols sofridos por time (incluindo mata-mata)
+  const ranking = GOLEIROS.map(g => {
+    let gols = 0;
+    // Fase de grupos
+    RODADAS.forEach(rd => {
+      rd.jogos.forEach((jogo, ji) => {
+        const key = jogoKey(rd.num, ji);
+        const p = placares[key];
+        if(!p || p.a==='' || p.b==='') return;
+        const na=parseInt(p.a), nb=parseInt(p.b);
+        if(isNaN(na)||isNaN(nb)) return;
+        if(jogo[0]===g.time) gols+=nb;
+        if(jogo[1]===g.time) gols+=na;
+      });
+    });
+    // Mata-mata
+    const ordem = getClassificacao();
+    const jogosMataMata = [
+      { key:'semi1', t1: ordem[0]||'', t2: ordem[3]||'' },
+      { key:'semi2', t1: ordem[1]||'', t2: ordem[2]||'' },
+      { key:'final1', t1:'', t2:'' },
+    ];
+    jogosMataMata.forEach(jm => {
+      const p = placares[jm.key];
+      if(!p||p.a===''||p.b==='') return;
+      const na=parseInt(p.a), nb=parseInt(p.b);
+      if(isNaN(na)||isNaN(nb)) return;
+      if(jm.t1===g.time) gols+=nb;
+      if(jm.t2===g.time) gols+=na;
+    });
+    return { ...g, gols };
+  }).sort((a,b) => a.gols - b.gols);
+
+  let html = '<div class="goleiros-header"><div>#</div><div>Goleiro</div><div style="text-align:right">GS</div></div>';
+
+  ranking.forEach((g, i) => {
+    const pc = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const rowClass = i===0?' primeiro':'';
+    const nomeExibido = g.nome === '?' ? `<span style="color:var(--muted);font-style:italic">A definir</span>` : g.nome;
+    html += `<div class="goleiro-row${rowClass}">
+      <div class="goleiro-pos ${pc}">${i+1}</div>
+      <div class="goleiro-info">
+        <div class="goleiro-nome">${nomeExibido}</div>
+        <div class="goleiro-time">${g.time}</div>
+      </div>
+      <div>
+        <div class="goleiro-gols-sofridos">${g.gols}</div>
+        <div class="goleiro-label">gols sofridos</div>
+      </div>
+    </div>`;
+  });
+
+  // Formulário para admin definir nomes
+  if(modoAdmin) {
+    html += `<div class="goleiro-form" style="margin-top:20px">
+      <div class="form-title">Definir nomes dos goleiros</div>
+      ${GOLEIROS.map((g,i) => `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="min-width:70px;font-size:13px;color:var(--muted)">${g.time}</span>
+          <input class="form-input" id="gol-nome-${i}" type="text" placeholder="Nome do goleiro" value="${g.nome==='?'?'':g.nome}" style="flex:1">
+        </div>`).join('')}
+      <button class="btn-salvar" style="margin:10px 0 0" onclick="salvarGoleiros()">Salvar goleiros</button>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function salvarGoleiros() {
+  GOLEIROS.forEach((g, i) => {
+    const input = document.getElementById('gol-nome-'+i);
+    if(input && input.value.trim()) g.nome = input.value.trim();
+  });
+  localStorage.setItem('goleiros', JSON.stringify(GOLEIROS.map(g=>({nome:g.nome,time:g.time}))));
+  renderGoleiros();
+  toast('Goleiros salvos!');
+}
+
+// Carregar nomes salvos
+(function() {
+  const saved = localStorage.getItem('goleiros');
+  if(saved) {
+    const data = JSON.parse(saved);
+    data.forEach(d => {
+      const g = GOLEIROS.find(x=>x.time===d.time);
+      if(g) g.nome = d.nome;
+    });
+  }
+})();
 
 // Não renderiza até escolher modo
 </script>
