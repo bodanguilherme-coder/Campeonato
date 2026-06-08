@@ -22,7 +22,7 @@
     --azul: #002776;
     --branco: #ffffff;
     --bg: #011a0e;
-    --bg2: rgba(0, 40, 20, 0.82);
+    --bg2: rgba(0, 25, 10, 0.92);
     --bg3: rgba(0, 60, 30, 0.7);
     --border: rgba(255,223,0,0.13);
     --border2: rgba(255,223,0,0.32);
@@ -1149,20 +1149,7 @@ function entrarVisitante() {
   badge.className = 'visitante';
   badge.style.display = 'block';
   badge.onclick = null;
-  // Forçar visibilidade total no mata-mata
-  setTimeout(() => {
-    const sec = document.getElementById('sec-matamata');
-    if(sec) {
-      sec.style.cssText = 'opacity:1 !important;display:block';
-      sec.querySelectorAll('*').forEach(el => {
-        el.style.opacity = '1';
-        if(el.classList.contains('time-left') || el.classList.contains('time-right')) {
-          el.style.color = '#ffffff';
-          el.style.fontWeight = '800';
-        }
-      });
-    }
-  }, 100);
+  // visibilidade gerenciada por CSS
   renderRodadas();
 }
 
@@ -1294,21 +1281,7 @@ function renderMataMata() {
   }
 
   el.innerHTML = html;
-  // Forçar cor branca em todos os time-left e time-right do mata-mata
-  setTimeout(() => {
-    el.querySelectorAll('.time-left, .time-right').forEach(div => {
-      div.style.opacity = '1';
-      div.style.color = '#ffffff';
-      div.style.fontWeight = '800';
-      div.querySelectorAll('span').forEach(span => {
-        if(!span.classList.contains('resultado-badge') && !span.classList.contains('bye-pill')) {
-          span.style.color = '#ffffff';
-          span.style.opacity = '1';
-          span.style.fontWeight = '800';
-        }
-      });
-    });
-  }, 50);
+
 }
 
 function renderJogoMata(titulo, data, t1, t2, key, p, res, vencedor, habilitado) {
