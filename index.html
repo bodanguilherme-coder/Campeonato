@@ -815,6 +815,54 @@
   /* A definir - italic visível */
   #sec-goleiros .goleiro-nome span { color: #aaaaaa !important; opacity: 1 !important; }
 
+
+  /* HISTÓRICO DE PLACARES */
+  .historico-titulo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px; letter-spacing: 2px;
+    color: var(--amarelo); margin: 24px 0 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .historico-titulo::after {
+    content:''; flex:1; height:1px; background: rgba(255,223,0,0.2);
+  }
+  .historico-rodada {
+    margin-bottom: 14px;
+  }
+  .historico-rodada-label {
+    font-size: 11px; font-weight: 700; color: var(--amarelo);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 6px 14px; background: rgba(255,223,0,0.08);
+    border-radius: 8px; display: inline-block; margin-bottom: 6px;
+    border: 1px solid rgba(255,223,0,0.2);
+  }
+  .historico-jogo {
+    display: flex; align-items: center;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 10px 16px;
+    margin-bottom: 5px; gap: 8px;
+    position: relative; z-index: 3;
+  }
+  .historico-time { flex: 1; font-size: 13px; font-weight: 600; color: #ffffff; opacity: 1; }
+  .historico-time.right { text-align: right; }
+  .historico-placar {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    color: var(--amarelo); min-width: 70px; text-align: center;
+    letter-spacing: 2px;
+  }
+  .historico-vazio {
+    font-size: 12px; color: var(--muted); font-style: italic;
+    padding: 8px 0; text-align: center;
+  }
+  .historico-resultado {
+    font-size: 10px; font-weight: 700; padding: 2px 6px;
+    border-radius: 4px; letter-spacing: 0.05em;
+  }
+  .hist-v { background: rgba(74,222,128,0.15); color: #4ade80; }
+  .hist-e { background: rgba(255,255,255,0.08); color: #aaaaaa; }
+  .hist-d { background: rgba(248,113,113,0.15); color: #f87171; }
+
 </style>
 </head>
 <body>
@@ -880,6 +928,7 @@
       <div style="text-align:center">Pts</div>
     </div>
     <div id="tabela-classificacao"></div>
+    <div id="historico-placares"></div>
   </div>
 
   <div id="sec-artilheiros" class="section">
@@ -993,7 +1042,7 @@ function showTab(tab) {
   });
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-'+tab).classList.add('active');
-  if(tab === 'pontuacao') renderClassificacao();
+  if(tab === 'pontuacao') { renderClassificacao(); renderHistorico(); }
   if(tab === 'artilheiros') renderArtilheiros();
   if(tab === 'matamata') renderMataMata();
   if(tab === 'goleiros') renderGoleiros();
@@ -1446,6 +1495,80 @@ function salvarGoleiros() {
     });
   }
 })();
+
+
+function renderHistorico() {
+  const el = document.getElementById('historico-placares');
+  if(!el) return;
+
+  let temJogo = false;
+  let html = '<div class="historico-titulo">📋 Histórico de Placares</div>';
+
+  // Fase de grupos
+  RODADAS.forEach(rd => {
+    const jogosFeitos = rd.jogos.filter((_, ji) => {
+      const p = placares[jogoKey(rd.num, ji)];
+      return p && p.a !== '' && p.b !== '';
+    });
+
+    if(jogosFeitos.length === 0) return;
+    temJogo = true;
+
+    html += `<div class="historico-rodada">
+      <div class="historico-rodada-label">Rodada ${rd.num} · ${rd.data}</div>`;
+
+    rd.jogos.forEach((jogo, ji) => {
+      const key = jogoKey(rd.num, ji);
+      const p = placares[key];
+      if(!p || p.a === '' || p.b === '') return;
+      const na = parseInt(p.a), nb = parseInt(p.b);
+      const resA = na > nb ? 'V' : na < nb ? 'D' : 'E';
+      const resB = nb > na ? 'V' : nb < na ? 'D' : 'E';
+      html += `<div class="historico-jogo">
+        <span class="historico-time">${jogo[0]}</span>
+        <span class="historico-resultado ${resA==='V'?'hist-v':resA==='E'?'hist-e':'hist-d'}">${resA}</span>
+        <span class="historico-placar">${na} × ${nb}</span>
+        <span class="historico-resultado ${resB==='V'?'hist-v':resB==='E'?'hist-e':'hist-d'}">${resB}</span>
+        <span class="historico-time right">${jogo[1]}</span>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  // Mata-mata
+  const ordem = getClassificacao();
+  const jogosMata = [
+    { label: 'Semifinal 1 · 14/07/2025', key: 'semi1', t1: ordem[0]||'1º', t2: ordem[3]||'4º' },
+    { label: 'Semifinal 2 · 14/07/2025', key: 'semi2', t1: ordem[1]||'2º', t2: ordem[2]||'3º' },
+    { label: 'Final · 21/07/2025',        key: 'final1', t1: 'Venc. Semi 1', t2: 'Venc. Semi 2' },
+  ];
+
+  jogosMata.forEach(jm => {
+    const p = placares[jm.key];
+    if(!p || p.a === '' || p.b === '') return;
+    const na = parseInt(p.a), nb = parseInt(p.b);
+    const resA = na > nb ? 'V' : na < nb ? 'D' : 'E';
+    const resB = nb > na ? 'V' : nb < na ? 'D' : 'E';
+    temJogo = true;
+    html += `<div class="historico-rodada">
+      <div class="historico-rodada-label">${jm.label}</div>
+      <div class="historico-jogo">
+        <span class="historico-time">${jm.t1}</span>
+        <span class="historico-resultado ${resA==='V'?'hist-v':resA==='E'?'hist-e':'hist-d'}">${resA}</span>
+        <span class="historico-placar">${na} × ${nb}</span>
+        <span class="historico-resultado ${resB==='V'?'hist-v':resB==='E'?'hist-e':'hist-d'}">${resB}</span>
+        <span class="historico-time right">${jm.t2}</span>
+      </div>
+    </div>`;
+  });
+
+  if(!temJogo) {
+    html += '<div class="historico-vazio">Nenhum resultado registrado ainda.</div>';
+  }
+
+  el.innerHTML = html;
+}
 
 // Não renderiza até escolher modo
 </script>
