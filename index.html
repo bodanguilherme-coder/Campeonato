@@ -865,44 +865,40 @@
 
 </style>
 
-<script>
-// Firebase Realtime Database
-const FIREBASE_URL = 'https://campeonato-f5750-default-rtdb.firebaseio.com';
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getDatabase, ref, onValue, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-async function fbGet(path) {
-  try {
-    const r = await fetch(FIREBASE_URL + path + '.json');
-    return await r.json();
-  } catch(e) { return null; }
-}
+  const firebaseConfig = {
+    databaseURL: "https://campeonato-f5750-default-rtdb.firebaseio.com"
+  };
 
-async function fbSet(path, data) {
-  try {
-    await fetch(FIREBASE_URL + path + '.json', {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    });
-  } catch(e) {}
-}
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const dbRef = ref(db, 'dados');
 
-async function fbPatch(path, data) {
-  try {
-    await fetch(FIREBASE_URL + path + '.json', {
-      method: 'PATCH',
-      body: JSON.stringify(data)
-    });
-  } catch(e) {}
-}
+  // Expor funções para o escopo global
+  window.fbUpdate = async function(data) {
+    try { await update(dbRef, data); } catch(e) { console.log('Firebase erro:', e); }
+  };
 
-// Sincronização em tempo real via polling a cada 10s
-function iniciarSync() {
-  setInterval(async () => {
-    const dados = await fbGet('/dados');
-    if(dados) {
-      const plocaisAntigos = JSON.stringify(placares);
-      const artAntigos = JSON.stringify(artilheiros);
-      const golAntigos = JSON.stringify(GOLEIROS.map(g=>g.nome));
-      
+  window.fbCarregar = async function() {
+    try {
+      const snap = await get(dbRef);
+      return snap.exists() ? snap.val() : null;
+    } catch(e) { return null; }
+  };
+
+  // Listener em tempo real
+  window.iniciarSync = function() {
+    onValue(dbRef, (snap) => {
+      if(!snap.exists()) return;
+      const dados = snap.val();
+
+      const pAntigos = JSON.stringify(placares);
+      const aAntigos = JSON.stringify(artilheiros);
+
       if(dados.placares) placares = dados.placares;
       if(dados.artilheiros) artilheiros = dados.artilheiros;
       if(dados.goleiros) {
@@ -911,23 +907,41 @@ function iniciarSync() {
           if(found) found.nome = g.nome;
         });
       }
-      
-      // Re-renderizar só se mudou
+
+      // Re-renderizar aba ativa
+      const tabs = ['rodadas','pontuacao','artilheiros','matamata','goleiros'];
       const tabAtiva = document.querySelector('.tab.active');
       if(tabAtiva) {
-        const tabs = ['rodadas','pontuacao','artilheiros','matamata','goleiros'];
         const idx = Array.from(document.querySelectorAll('.tab')).indexOf(tabAtiva);
         if(idx >= 0) {
-          if(tabs[idx] === 'rodadas' && JSON.stringify(placares) !== plocaisAntigos) renderRodadas();
+          if(tabs[idx] === 'rodadas') renderRodadas();
           if(tabs[idx] === 'pontuacao') { renderClassificacao(); renderHistorico(); }
-          if(tabs[idx] === 'artilheiros' && JSON.stringify(artilheiros) !== artAntigos) renderArtilheiros();
+          if(tabs[idx] === 'artilheiros') renderArtilheiros();
           if(tabs[idx] === 'matamata') renderMataMata();
           if(tabs[idx] === 'goleiros') renderGoleiros();
         }
       }
+    });
+  };
+
+  window.fbCarregarEIniciar = async function() {
+    const dados = await window.fbCarregar();
+    if(dados) {
+      if(dados.placares) { placares = dados.placares; localStorage.setItem('placares', JSON.stringify(placares)); }
+      if(dados.artilheiros) { artilheiros = dados.artilheiros; localStorage.setItem('artilheiros', JSON.stringify(artilheiros)); }
+      if(dados.goleiros) {
+        dados.goleiros.forEach(g => { const f = GOLEIROS.find(x=>x.time===g.time); if(f) f.nome=g.nome; });
+        localStorage.setItem('goleiros', JSON.stringify(dados.goleiros));
+      }
     }
-  }, 10000);
-}
+    window.iniciarSync();
+  };
+</script>
+<script>
+// Fallbacks para quando Firebase ainda não carregou
+window.fbUpdate = window.fbUpdate || function(){};
+window.fbCarregarEIniciar = window.fbCarregarEIniciar || function(){ return Promise.resolve(); };
+window.iniciarSync = window.iniciarSync || function(){};
 </script>
 
 </head>
@@ -1100,11 +1114,7 @@ let artilheiros = JSON.parse(localStorage.getItem('artilheiros') || '[]');
 function salvar() {
   localStorage.setItem('placares', JSON.stringify(placares));
   localStorage.setItem('artilheiros', JSON.stringify(artilheiros));
-  // Sincronizar com Firebase
-  fbPatch('/dados', {
-    placares: placares,
-    artilheiros: artilheiros
-  });
+  if(window.fbUpdate) window.fbUpdate({ placares: placares, artilheiros: artilheiros });
 }
 
 function showTab(tab) {
@@ -1272,8 +1282,7 @@ function entrarVisitante() {
   badge.style.display = 'block';
   badge.onclick = null;
   // visibilidade gerenciada por CSS
-  carregarDoFirebase().then(() => renderRodadas());
-  iniciarSync();
+  (window.fbCarregarEIniciar || function(){return Promise.resolve();})().then(() => renderRodadas());
 }
 
 function entrarAdmin() {
@@ -1553,8 +1562,7 @@ function salvarGoleiros() {
     if(input && input.value.trim()) g.nome = input.value.trim();
   });
   localStorage.setItem('goleiros', JSON.stringify(GOLEIROS.map(g=>({nome:g.nome,time:g.time}))));
-  // Sincronizar goleiros com Firebase
-  fbPatch('/dados', { goleiros: GOLEIROS.map(g=>({nome:g.nome,time:g.time})) });
+  if(window.fbUpdate) window.fbUpdate({ goleiros: GOLEIROS.map(g=>({nome:g.nome,time:g.time})) });
   renderGoleiros();
   toast('Goleiros salvos!');
 }
