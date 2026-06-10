@@ -864,6 +864,72 @@
   .hist-d { background: rgba(248,113,113,0.15); color: #f87171; }
 
 </style>
+
+<script>
+// Firebase Realtime Database
+const FIREBASE_URL = 'https://campeonato-f5750-default-rtdb.firebaseio.com';
+
+async function fbGet(path) {
+  try {
+    const r = await fetch(FIREBASE_URL + path + '.json');
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+async function fbSet(path, data) {
+  try {
+    await fetch(FIREBASE_URL + path + '.json', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  } catch(e) {}
+}
+
+async function fbPatch(path, data) {
+  try {
+    await fetch(FIREBASE_URL + path + '.json', {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  } catch(e) {}
+}
+
+// Sincronização em tempo real via polling a cada 10s
+function iniciarSync() {
+  setInterval(async () => {
+    const dados = await fbGet('/dados');
+    if(dados) {
+      const plocaisAntigos = JSON.stringify(placares);
+      const artAntigos = JSON.stringify(artilheiros);
+      const golAntigos = JSON.stringify(GOLEIROS.map(g=>g.nome));
+      
+      if(dados.placares) placares = dados.placares;
+      if(dados.artilheiros) artilheiros = dados.artilheiros;
+      if(dados.goleiros) {
+        dados.goleiros.forEach(g => {
+          const found = GOLEIROS.find(x => x.time === g.time);
+          if(found) found.nome = g.nome;
+        });
+      }
+      
+      // Re-renderizar só se mudou
+      const tabAtiva = document.querySelector('.tab.active');
+      if(tabAtiva) {
+        const tabs = ['rodadas','pontuacao','artilheiros','matamata','goleiros'];
+        const idx = Array.from(document.querySelectorAll('.tab')).indexOf(tabAtiva);
+        if(idx >= 0) {
+          if(tabs[idx] === 'rodadas' && JSON.stringify(placares) !== plocaisAntigos) renderRodadas();
+          if(tabs[idx] === 'pontuacao') { renderClassificacao(); renderHistorico(); }
+          if(tabs[idx] === 'artilheiros' && JSON.stringify(artilheiros) !== artAntigos) renderArtilheiros();
+          if(tabs[idx] === 'matamata') renderMataMata();
+          if(tabs[idx] === 'goleiros') renderGoleiros();
+        }
+      }
+    }
+  }, 10000);
+}
+</script>
+
 </head>
 <body>
 
@@ -1034,6 +1100,11 @@ let artilheiros = JSON.parse(localStorage.getItem('artilheiros') || '[]');
 function salvar() {
   localStorage.setItem('placares', JSON.stringify(placares));
   localStorage.setItem('artilheiros', JSON.stringify(artilheiros));
+  // Sincronizar com Firebase
+  fbPatch('/dados', {
+    placares: placares,
+    artilheiros: artilheiros
+  });
 }
 
 function showTab(tab) {
@@ -1201,7 +1272,8 @@ function entrarVisitante() {
   badge.style.display = 'block';
   badge.onclick = null;
   // visibilidade gerenciada por CSS
-  renderRodadas();
+  carregarDoFirebase().then(() => renderRodadas());
+  iniciarSync();
 }
 
 function entrarAdmin() {
@@ -1216,7 +1288,8 @@ function entrarAdmin() {
     badge.style.display = 'block';
     badge.onclick = sairAdmin;
     document.getElementById('senha-erro').style.display = 'none';
-    renderRodadas();
+    carregarDoFirebase().then(() => renderRodadas());
+    iniciarSync();
   } else {
     const err = document.getElementById('senha-erro');
     err.style.display = 'block';
@@ -1480,6 +1553,8 @@ function salvarGoleiros() {
     if(input && input.value.trim()) g.nome = input.value.trim();
   });
   localStorage.setItem('goleiros', JSON.stringify(GOLEIROS.map(g=>({nome:g.nome,time:g.time}))));
+  // Sincronizar goleiros com Firebase
+  fbPatch('/dados', { goleiros: GOLEIROS.map(g=>({nome:g.nome,time:g.time})) });
   renderGoleiros();
   toast('Goleiros salvos!');
 }
@@ -1570,13 +1645,43 @@ function renderHistorico() {
   el.innerHTML = html;
 }
 
+
+async function carregarDoFirebase() {
+  try {
+    const dados = await fbGet('/dados');
+    if(dados) {
+      if(dados.placares) {
+        placares = dados.placares;
+        localStorage.setItem('placares', JSON.stringify(placares));
+      }
+      if(dados.artilheiros) {
+        artilheiros = dados.artilheiros;
+        localStorage.setItem('artilheiros', JSON.stringify(artilheiros));
+      }
+      if(dados.goleiros) {
+        dados.goleiros.forEach(g => {
+          const found = GOLEIROS.find(x => x.time === g.time);
+          if(found) found.nome = g.nome;
+        });
+        localStorage.setItem('goleiros', JSON.stringify(dados.goleiros));
+      }
+    }
+  } catch(e) {
+    console.log('Firebase offline, usando dados locais');
+  }
+}
+
 // Não renderiza até escolher modo
 </script>
 
 <script>
+// Remover service worker para garantir que o app sempre busque dados atualizados
 if('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
+  });
+  caches.keys().then(keys => {
+    keys.forEach(key => caches.delete(key));
   });
 }
 </script>
